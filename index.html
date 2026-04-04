@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>Chadmaxxing — AI Face Analyzer</title>
+  <meta name="description" content="Private, on-device facial analysis using AI landmark detection">
+  <meta name="theme-color" content="#0a0a0f">
+
+  <!-- PWA / iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chadmaxxing">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.json">
+
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="app-title">Chadmaxxing</span>
+    </div>
+    <div class="header-right">
+      <span id="model-status" class="model-status loading">Loading...</span>
+      <button id="history-btn" class="icon-btn" title="Scan History">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="history-badge" class="badge" style="display:none">0</span>
+      </button>
+      <button id="a2hs-btn" class="icon-btn" title="Install App">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Screen: Capture ────────────────────────────────────── -->
+  <main id="screen-capture" class="screen active">
+    <div class="capture-container">
+      <div class="viewfinder">
+        <div id="camera-placeholder" class="camera-placeholder">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <p>Camera preview will appear here</p>
+        </div>
+        <video id="camera-video" playsinline autoplay muted style="display:none"></video>
+        <div class="face-guide"></div>
+      </div>
+
+      <div class="capture-tips">
+        <p>For best results: even lighting, neutral expression, face the camera directly.</p>
+      </div>
+
+      <div class="capture-actions">
+        <button id="capture-btn" class="btn btn-primary btn-large" style="display:none">
+          Capture Photo
+        </button>
+
+        <label id="camera-fallback" class="btn btn-primary btn-large" for="file-input-direct">
+          Take Photo
+        </label>
+        <input type="file" id="file-input-direct" accept="image/*" capture="user" class="sr-only">
+
+        <!-- hidden fallback only, not user-facing -->
+        <input type="file" id="file-input" accept="image/*" class="sr-only">
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Screen: Loading ────────────────────────────────────── -->
+  <main id="screen-loading" class="screen">
+    <div class="loading-container">
+      <div class="loading-spinner"></div>
+      <p id="loading-step" class="loading-step">Analyzing...</p>
+      <div class="loading-bar">
+        <div id="loading-bar-fill" class="loading-bar-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Screen: Error ──────────────────────────────────────── -->
+  <main id="screen-error" class="screen">
+    <div class="error-container">
+      <div class="error-icon">⚠️</div>
+      <h2 id="error-title">Error</h2>
+      <p id="error-message">Something went wrong.</p>
+      <button id="error-retry" class="btn btn-primary" style="display:none">Retry</button>
+      <button class="btn btn-secondary back-btn" data-back="screen-capture">Back</button>
+    </div>
+  </main>
+
+  <!-- ── Screen: Results ────────────────────────────────────── -->
+  <main id="screen-results" class="screen">
+    <div class="results-container">
+      <!-- Pose warning (non-blocking, shown when head tilt is moderate) -->
+      <div id="pose-warning" class="pose-warning" style="display:none"></div>
+
+      <!-- Top: Image + Harmony Score -->
+      <div class="results-top">
+        <div class="result-image-wrap">
+          <canvas id="result-canvas"></canvas>
+        </div>
+        <div class="harmony-section">
+          <div id="harmony-gauge"></div>
+          <div id="face-shape-label" class="face-shape-label"></div>
+        </div>
+      </div>
+
+      <!-- Category Gauges -->
+      <section class="section">
+        <h2 class="section-title">Sub-Scores</h2>
+        <div id="category-gauges" class="gauge-grid"></div>
+      </section>
+
+      <!-- Quick Insights -->
+      <section class="section">
+        <h2 class="section-title">Quick Insights</h2>
+        <ul id="insights-list" class="insights-list"></ul>
+      </section>
+
+      <!-- Recommendations -->
+      <section class="section">
+        <h2 class="section-title">Recommendations</h2>
+        <div id="recommendations"></div>
+      </section>
+
+      <!-- Critical Mode Toggle -->
+      <section class="section critical-section">
+        <label class="critical-toggle">
+          <input type="checkbox" id="critical-mode-toggle">
+          <span>Critical Mode — Show Score Weights &amp; Raw Metrics</span>
+        </label>
+        <div id="critical-mode-panel" class="critical-panel">
+          <div id="critical-mode-content"></div>
+        </div>
+      </section>
+
+      <!-- Disclaimer -->
+      <section class="disclaimer">
+        <p>This analysis measures geometric proportions only. Scores reflect mathematical ratios compared to statistical averages, not a judgment of attractiveness. Beauty is subjective and culturally influenced.</p>
+      </section>
+
+      <!-- Actions -->
+      <div class="results-actions">
+        <button id="scan-again-btn" class="btn btn-primary">Scan Again</button>
+        <button class="btn btn-secondary" data-nav="screen-history">View History</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── Screen: History ────────────────────────────────────── -->
+  <main id="screen-history" class="screen">
+    <div class="history-container">
+      <div class="screen-header">
+        <button class="back-btn" data-back="screen-capture">&larr; Back</button>
+        <h2>Scan History</h2>
+      </div>
+      <div id="history-grid" class="history-grid"></div>
+    </div>
+  </main>
+
+  <!-- ── Modal: Add to Home Screen Instructions ─────────────── -->
+  <div id="a2hs-modal" class="modal">
+    <div class="modal-content">
+      <button id="a2hs-close" class="modal-close">&times;</button>
+      <h2>Install Chadmaxxing</h2>
+      <div class="a2hs-steps">
+        <p><strong>On iPad / iPhone (Safari):</strong></p>
+        <ol>
+          <li>Tap the <strong>Share</strong> button <span class="share-icon">⬆</span> in Safari's toolbar</li>
+          <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+          <li>Tap <strong>"Add"</strong> in the top right</li>
+        </ol>
+        <p class="muted">The app will run in full-screen mode with offline support.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
