@@ -6,12 +6,12 @@ import { toPixelCoords, checkHeadPose } from './landmarks.js';
 import { computeAllMetrics } from './metrics.js';
 import { computeScores } from './scoring.js';
 import { generateRecommendations } from './recommendations.js';
-import { saveScan, getAllScans, deleteScan, getScanCount } from './storage.js';
+import { saveScan, getAllScans, deleteScan, getScanCount, getScan } from './storage.js';
 import { loadImageFromFile, initLiveCamera, captureFrame, stopCamera, isCameraActive, createThumbnail } from './camera.js';
 import {
   showScreen, showLoading, showError, updateModelStatus,
   setupCaptureScreen, showCameraPreview, hideCameraPreview,
-  renderResults, setupCriticalMode, renderHistory,
+  renderResults, renderSavedResults, setupCriticalMode, renderHistory,
   setupA2HS, setupNavigation, updateHistoryBadge
 } from './ui.js';
 
@@ -168,9 +168,8 @@ async function analyzeImage(img) {
     const h = img.naturalHeight || img.height;
     const pixelLandmarks = toPixelCoords(landmarks, w, h);
 
-    // Check head pose — never blocks, warning only
-    const pose = checkHeadPose(pixelLandmarks);
-    const poseWarning = pose.warning || (pose.ok ? null : pose.message);
+    // Check head pose (kept for internal use, no UI warning)
+    checkHeadPose(pixelLandmarks);
 
     showLoading('Computing facial metrics...', 60);
 
@@ -188,7 +187,7 @@ async function analyzeImage(img) {
     showLoading('Rendering results...', 95);
 
     // Render results (uses raw normalized landmarks for canvas overlay)
-    renderResults(img, landmarks, metrics, scores, recommendations, poseWarning);
+    renderResults(img, landmarks, metrics, scores, recommendations, null);
 
     // Save to history
     try {
@@ -196,6 +195,8 @@ async function analyzeImage(img) {
       await saveScan({
         thumbnail,
         scores,
+        metrics,
+        recommendations,
         faceShape: metrics.faceShape.shape,
         date: new Date().toISOString()
       });
@@ -228,11 +229,20 @@ async function goToHistory() {
     const onDelete = async (id) => {
       await deleteScan(id);
       const updated = await getAllScans();
-      renderHistory(updated, onDelete);
+      renderHistory(updated, onDelete, onView);
       const count = await getScanCount();
       updateHistoryBadge(count);
     };
-    renderHistory(scans, onDelete);
+    const onView = async (id) => {
+      try {
+        const scan = await getScan(id);
+        if (!scan) return;
+        renderSavedResults(scan);
+      } catch (err) {
+        console.warn('Failed to load scan:', err);
+      }
+    };
+    renderHistory(scans, onDelete, onView);
   } catch (e) {
     showError('History Error', 'Could not load scan history.', false);
   }

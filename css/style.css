@@ -70,7 +70,36 @@ p { color: #a0a0b0; }
   }
 }
 
-.app-title {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.header-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.header-title-center {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -79,6 +108,14 @@ p { color: #a0a0b0; }
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Capture screen: show centered title, hide left branding */
+.app-header.capture-active .header-brand { display: none; }
+.app-header.capture-active .header-logo { opacity: 0; pointer-events: none; }
+.app-header.capture-active .header-center { display: block; }
+
+/* Other screens: show left branding, hide centered title */
+.app-header:not(.capture-active) .header-center { display: none; }
 
 .header-right {
   display: flex;
@@ -177,6 +214,7 @@ p { color: #a0a0b0; }
   padding: 1rem 1.25rem 2rem;
   max-width: 680px;
   margin: 0 auto;
+  position: relative;
   animation: fadeIn 0.25s ease;
 }
 .screen.active { display: block; }
@@ -337,17 +375,6 @@ p { color: #a0a0b0; }
   border: 1px solid rgba(255,255,255,0.06);
 }
 
-.pose-warning {
-  background: rgba(250, 204, 21, 0.08);
-  border: 1px solid rgba(250, 204, 21, 0.2);
-  border-radius: 10px;
-  padding: 0.65rem 1rem;
-  font-size: 0.82rem;
-  color: #e0c060;
-  text-align: center;
-  line-height: 1.4;
-}
-
 #result-canvas {
   display: block;
   width: 100%;
@@ -368,6 +395,30 @@ p { color: #a0a0b0; }
   color: #a0a0b0;
   text-align: center;
   font-weight: 500;
+}
+
+.psl-classification {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  text-align: center;
+}
+
+.psl-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.psl-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00d4ff;
+}
+
+.psl-sub {
+  font-size: 0.75rem;
+  opacity: 0.5;
 }
 
 /* ── Sections ─────────────────────────────────────────────────── */
@@ -679,6 +730,7 @@ p { color: #a0a0b0; }
   border-radius: 14px;
   overflow: hidden;
   transition: border-color 0.2s;
+  cursor: pointer;
 }
 .history-card:active { border-color: rgba(255,255,255,0.12); }
 

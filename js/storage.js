@@ -48,6 +48,9 @@ export async function saveScan(scan) {
       thumbnail: scan.thumbnail,
       harmony: scan.scores.harmony,
       categoryScores: scan.scores.categoryScores,
+      scores: scan.scores,
+      metrics: scan.metrics || null,
+      recommendations: scan.recommendations || null,
       faceShape: scan.faceShape || '',
       date: scan.date || new Date().toISOString()
     };

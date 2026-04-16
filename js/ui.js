@@ -15,6 +15,12 @@ export function showScreen(screenId) {
     target.classList.add('active');
     window.scrollTo(0, 0);
   }
+
+  // Toggle header branding mode
+  const header = document.querySelector('.app-header');
+  if (header) {
+    header.classList.toggle('capture-active', screenId === 'screen-capture');
+  }
 }
 
 // ── Capture Screen ───────────────────────────────────────────────
@@ -97,27 +103,41 @@ export function updateModelStatus(text, isReady) {
   el.classList.toggle('loading', !isReady);
 }
 
+// ── PSL Classification ───────────────────────────────────────────
+
+function getPSLClassification(score) {
+  if (score >= 90) return { label: "Gigachad", sub: "Top decile" };
+  if (score >= 80) return { label: "Chad", sub: "High-tier normy" };
+  if (score >= 70) return { label: "Chadlite", sub: "Above average" };
+  if (score >= 60) return { label: "Male mid-tier normy", sub: "Brad" };
+  if (score >= 50) return { label: "Lower mid-tier normy", sub: "Tanner" };
+  if (score >= 40) return { label: "Low-tier normy", sub: "Melvin" };
+  if (score >= 30) return { label: "Below average", sub: "Incelish / Semicel" };
+  if (score >= 20) return { label: "Low-tier", sub: "Incel" };
+  return { label: "Extreme low-tier", sub: "Truecel" };
+}
+
 // ── Results Screen ───────────────────────────────────────────────
 
 export function renderResults(img, landmarks, metrics, scores, recommendations, poseWarning) {
   showScreen('screen-results');
-
-  // Show pose warning banner if present (non-blocking)
-  const warningEl = document.getElementById('pose-warning');
-  if (warningEl) {
-    if (poseWarning) {
-      warningEl.textContent = poseWarning;
-      warningEl.style.display = 'block';
-    } else {
-      warningEl.style.display = 'none';
-    }
-  }
 
   // Draw captured image with landmark overlay
   renderCanvasOverlay(img, landmarks);
 
   // Harmony score gauge
   renderHarmonyGauge(scores.harmony);
+
+  // PSL classification
+  const psl = getPSLClassification(scores.harmony);
+  const pslEl = document.getElementById('psl-classification');
+  if (pslEl) {
+    pslEl.innerHTML = `
+      <div class="psl-label">Classification</div>
+      <div class="psl-value">${psl.label}</div>
+      <div class="psl-sub">${psl.sub}</div>
+    `;
+  }
 
   // Face shape label
   const shapeEl = document.getElementById('face-shape-label');
@@ -136,6 +156,68 @@ export function renderResults(img, landmarks, metrics, scores, recommendations, 
 
   // Store data for Critical Mode
   window.__chadmaxxingData = { metrics, scores };
+}
+
+// ── Render Saved Results (from history) ─────────────────────────
+
+export function renderSavedResults(scan) {
+  showScreen('screen-results');
+
+  // Draw thumbnail on canvas (no landmark overlay)
+  const canvas = document.getElementById('result-canvas');
+  if (canvas) {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = canvas.parentElement.clientWidth || 400;
+      const scale = Math.min(maxW / img.width, 1);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = scan.thumbnail;
+  }
+
+  // Harmony gauge
+  renderHarmonyGauge(scan.scores.harmony);
+
+  // PSL classification
+  const psl = getPSLClassification(scan.scores.harmony);
+  const pslEl = document.getElementById('psl-classification');
+  if (pslEl) {
+    pslEl.innerHTML = `
+      <div class="psl-label">Classification</div>
+      <div class="psl-value">${psl.label}</div>
+      <div class="psl-sub">${psl.sub}</div>
+    `;
+  }
+
+  // Face shape
+  const shapeEl = document.getElementById('face-shape-label');
+  if (shapeEl) {
+    shapeEl.textContent = scan.faceShape || '';
+  }
+
+  if (scan.metrics) {
+    // Full data available — render everything
+    renderCategoryGauges(scan.scores.categoryScores);
+    renderInsights(scan.metrics, scan.scores);
+    renderRecommendations(scan.recommendations || []);
+    window.__chadmaxxingData = { metrics: scan.metrics, scores: scan.scores };
+  } else {
+    // Old scan — partial data only
+    if (scan.categoryScores) {
+      renderCategoryGauges(scan.categoryScores);
+    } else {
+      const grid = document.getElementById('category-gauges');
+      if (grid) grid.innerHTML = '<p class="muted centered">Sub-scores not available for older scans.</p>';
+    }
+    const insightsEl = document.getElementById('insights-list');
+    if (insightsEl) insightsEl.innerHTML = '<li class="muted">Detailed insights not available for older scans. Scan again for full results.</li>';
+    const recEl = document.getElementById('recommendations');
+    if (recEl) recEl.innerHTML = '<p class="muted">Recommendations not available for older scans.</p>';
+    window.__chadmaxxingData = null;
+  }
 }
 
 // ── Canvas Overlay (landmarks on face) ───────────────────────────
@@ -393,7 +475,7 @@ function renderCriticalPanel(metrics, scores) {
 
 // ── History Screen ───────────────────────────────────────────────
 
-export function renderHistory(scans, onDelete) {
+export function renderHistory(scans, onDelete, onView) {
   showScreen('screen-history');
   const grid = document.getElementById('history-grid');
   if (!grid) return;
@@ -423,6 +505,16 @@ export function renderHistory(scans, onDelete) {
       if (confirm('Delete this scan?')) onDelete(id);
     });
   });
+
+  // Attach card click handlers for viewing
+  if (onView) {
+    grid.querySelectorAll('.history-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = parseInt(card.dataset.id);
+        onView(id);
+      });
+    });
+  }
 }
 
 function formatDate(iso) {

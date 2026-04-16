@@ -21,7 +21,11 @@
   <!-- ── Header ─────────────────────────────────────────────── -->
   <header class="app-header">
     <div class="header-left">
-      <span class="app-title">Chadmaxxing</span>
+      <img src="./icons/icon-192.png" class="header-logo" alt="">
+      <span class="header-brand">Chadmaxxing</span>
+    </div>
+    <div class="header-center">
+      <span class="header-title-center">Chadmaxxing</span>
     </div>
     <div class="header-right">
       <span id="model-status" class="model-status loading">Loading...</span>
@@ -55,13 +59,10 @@
       </div>
 
       <div class="capture-actions">
-        <button id="capture-btn" class="btn btn-primary btn-large" style="display:none">
+        <button id="capture-btn" class="btn btn-primary btn-large">
           Capture Photo
         </button>
 
-        <label id="camera-fallback" class="btn btn-primary btn-large" for="file-input-direct">
-          Take Photo
-        </label>
         <input type="file" id="file-input-direct" accept="image/*" capture="user" class="sr-only">
 
         <!-- hidden fallback only, not user-facing -->
@@ -95,9 +96,6 @@
   <!-- ── Screen: Results ────────────────────────────────────── -->
   <main id="screen-results" class="screen">
     <div class="results-container">
-      <!-- Pose warning (non-blocking, shown when head tilt is moderate) -->
-      <div id="pose-warning" class="pose-warning" style="display:none"></div>
-
       <!-- Top: Image + Harmony Score -->
       <div class="results-top">
         <div class="result-image-wrap">
@@ -106,6 +104,7 @@
         <div class="harmony-section">
           <div id="harmony-gauge"></div>
           <div id="face-shape-label" class="face-shape-label"></div>
+          <div id="psl-classification" class="psl-classification"></div>
         </div>
       </div>
 
